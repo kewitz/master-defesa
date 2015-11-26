@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8">
+    <title>Defesa</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+    <link rel="stylesheet" href="css/reveal.css">
+    <link rel="stylesheet" href="css/theme/leo.css" id="theme">
+    <link rel="stylesheet" href="lib/css/github.css">
+    <script>
+      var link = document.createElement( 'link' );
+      link.rel = 'stylesheet';
+      link.type = 'text/css';
+      link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+      document.getElementsByTagName( 'head' )[0].appendChild( link );
+
+    </script><!--[if lt IE 9]> <script src="lib/js/html5shiv.js"></script> <![endif]-->
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section>
+          <div class="slide cover">
+            <h4>Programação Paralela em GPU aplicada à técnica <em>N-Scheme</em> para solução de problemas Eletrostáticos utilizando o Método dos Elementos Finitos</h4>
+            <ul class="center">
+              <li>Autor: Leonardo K. Kewitz</li>
+              <li>Orientador: Marcelo Grafulha Vanti</li>
+            </ul>
+            <p></p>
+            <ul class="center">
+              <li class="sm">PPGEE – Programa de Pós-graduação em Engenharia Elétrica</li>
+              <li class="sm">Área de Concentração: Sistemas de Energia</li>
+              <li class="sm">Linha de Pesquisa: Eletromagnetismo Aplicado e Telecomunicações</li>
+            </ul>
+            <div class="logos"><img src="img/furb.jpg"></div>
+          </div>
+        </section>
+        <section>
+          <div style="background-image: url(img/die.jpg)" class="bg left small"></div>
+          <div class="slide right big">
+            <h3>Estrutura</h3>
+            <ul>
+              <li>Introdução</li>
+              <li>Processamento Paralelo e Arquitetura CUDA</li>
+              <li>O Método dos Elementos Finitos <small>FEM</small></li>
+              <li>A Técnica <em>N-Scheme</em></li>
+              <li>Paralelização do <em>N-Scheme</em></li>
+              <li>Resultados</li>
+            </ul>
+          </div>
+        </section>
+        <section>
+          <div style="background-image: url(img/fluid2.jpg)" class="bg left small"></div>
+          <div class="slide right big">
+            <h3>Introdução</h3>
+            <ul>
+              <li>O FEM é amplamente utilizado.</li>
+              <li class="fragment">Crescente complexidade dos problemas simulados.</li>
+              <li class="fragment">Métodos iterativos.</li>
+              <li class="fragment">Processamento paralelo.</li>
+              <li class="fragment">Evolução da Unidade de Processamento Gráfico.</li>
+              <li class="fragment"><em>N-Scheme</em> apresenta granularidade e baixa utilização de memória.</li>
+            </ul>
+            <aside class="notes">
+              <ol>
+                <li>Método numérico para soluções aproximadas de EDPs.</li>
+                <li>Matriz do sistema linear cada vez maiores.</li>
+                <li>Métodos iterativos convergem à solução do sistema.</li>
+                <li>Processamento paralelo em Clusters.</li>
+                <li>Processador genérico massivamenta paralelo.</li>
+              </ol>
+            </aside>
+          </div>
+        </section>
+        <section>
+          <div style="background-image: url(img/dieplate.jpg)" class="bg left small"></div>
+          <div class="slide right big">
+            <h3>A Unidade Central de Processamento</h3>
+            <ul>
+              <li>Otimizado para execução sequencial.</li>
+              <li class="fragment">Evoluia com base no aumento do <em>clock</em>.</li>
+              <li class="fragment">Desempenho do <em>Software</em> é proporcional ao <em>clock</em>.</li>
+              <li class="fragment">Anos 2000 atinge o limite <em>Power-Wall</em>.</li>
+              <li class="fragment">Adota a estratégia de evolução <em>multi-core</em>.</li>
+            </ul>
+          </div>
+          <aside class="notes">
+            <ol>
+              <li>Desenvolvedores não precisavam adaptar o código para aumentar o desempenho.</li>
+              <li>Potência dissipada pelo CPU = clock ao cubo.</li>
+              <li>Multicore = Mantem desempenho, aumenta os núcleos.</li>
+            </ol>
+          </aside>
+        </section>
+        <section>
+          <div style="background-image: url(img/gf.jpg)" class="bg left small"></div>
+          <div class="slide right big">
+            <h3>Processamento em GPU</h3>
+            <ul>
+              <li>Desenho focado na renderização gráfica.</li>
+              <li class="fragment">Estratégia de evolução <em>many-core</em>.</li>
+              <li class="fragment">Maioria dos transístores dedicados ao processamento.</li>
+              <li class="fragment">Ordem de processamento imprevisível.</li>
+              <li class="fragment">Alta capacidade de processamento compensa latência.</li>
+            </ul>
+          </div>
+          <aside class="notes">
+            <ol>
+              <li>Pixels são renderizados separadamente de forma paralela.</li>
+              <li>Sua filosofia sempre foi aumentar o desempenho em cima do aumento de núcleos.</li>
+              <li>Cache reduzido, controles de fluxo mais simples.</li>
+            </ol>
+          </aside>
+        </section>
+        <section>
+          <div class="slide fullimg"><img src="img/design_cpuvsgpu.png"></div>
+        </section>
+        <section>
+          <div class="slide fullimg"><img src="img/floating-point-operations-per-second.png"></div>
+        </section>
+        <section>
+          <div style="background-image: url(img/tesla.jpeg)" class="bg left small"></div>
+          <div class="slide right big">
+            <h3>Processamento em GPU</h3>
+            <ul>
+              <li>Três grandes fabricantes no mercado:
+                <div class="logos center"><img src="img/intel.png" style="height: 3rem; margin-right: 1rem;"><img src="img/nvidia.png" style="height: 3rem; margin-right: 1rem;"><img src="img/amd.png" style="height: 3rem;"></div>
+              </li>
+              <li class="fragment">NVIDIA se destaca no mercado de HPC.</li>
+              <li class="fragment">Ocupa 8 posições no TOP10 da Green500.</li>
+              <li class="fragment">Atua em 4 linhas:
+                <ul>
+                  <li>GeForce: Entretenimento;</li>
+                  <li>Quadro: Visualização Profissional;</li>
+                  <li>Tesla: HPC;</li>
+                  <li>Tegra: Embarcados.</li>
+                </ul>
+              </li>
+            </ul>
+          </div>
+        </section>
+        <section>
+          <div style="background-image: url(img/sli.jpg)" class="bg left small"></div>
+          <div class="slide right big">
+            <h3>Arquitetura da GPU</h3>
+            <ul>
+              <li>Conjunto modular de multiprocessadores (SMs).</li>
+              <li class="fragment">SMs variam em quantidade por modelo de GPU.</li>
+              <li class="fragment">Quantidade de núcleos por SM variam por arquitetura.</li>
+              <li class="fragment">Algumas funções especiais possuem núcleos dedicados.</li>
+              <li class="fragment">Evolução indexada pelo <em>Compute Capability</em>.</li>
+            </ul>
+          </div>
+          <aside class="notes">
+            <ul>
+              <li>Streaming-Multiprocessors.</li>
+              <li>Estrutura modular de SM permite escalabilidade do programa.</li>
+              <li>Quantidade de núcleos por SM depende da arquitetura (Kepler 192) (Maxwell 128).</li>
+              <li>sen, cos, log2, exp2.</li>
+              <li>CC: 1.0 Tesla, 2.0 Fermi, 3.0 Kepler, 5.0 Maxwell</li>
+            </ul>
+          </aside>
+        </section>
+        <section>
+          <div class="slide fullimg"><img src="img/sm_scalability.png"></div>
+        </section>
+        <section>
+          <div class="slide fullimg" id="sm" style="height: 90%;"><img src="img/smm.png"></div>
+        </section>
+        <section>
+          <div style="background-image: url(img/tegra.jpg)" class="bg left small"></div>
+          <div class="slide right big">
+            <h3>Arquitetura da GPU</h3>
+            <ul>
+              <li>Compatível com o padrão IEEE 754 desde o CC 2.2.</li>
+              <li class="fragment">SMs recebem blocos de <em>threads</em> e subdividem <em>warps</em>.</li>
+              <li class="fragment">Modelo de execução <em>Single Instruction, Multiple Threads</em> (SIMT).</li>
+              <li class="fragment">Permite execução de instruções distintas, porém sequencialmente.</li>
+            </ul>
+          </div>
+        </section>
+        <section>
+          <div class="slide fullimg"><img src="img/warp_execution.png"></div>
+        </section>
+        <section>
+          <div style="background-image: url(img/grid.jpg); background-position-x: 100%;" class="bg left small"></div>
+          <div class="slide right big">
+            <h3>Compute Unified Device Architecture <small>CUDA</small></h3>
+            <ul>
+              <li>Modelo de programação heterogênea.</li>
+              <li class="fragment">Desenvolvedor decide o contexto onde as funções são executadas.</li>
+              <li class="fragment">Funções executadas na GPU são chamadas de <em>kernels</em>.</li>
+              <li class="fragment">Sua execução é assíncrona. Requer o uso de funções explícitas de sincronização.</li>
+            </ul>
+          </div>
+        </section>
+        <section>
+          <div class="slide fullimg"><img src="img/modelo_execucao.png"></div>
+        </section>
+        <section>
+          <div style="background-image: url(img/grid.jpg); background-position-x: 100%;" class="bg left small"></div>
+          <div class="slide right big">
+            <h3>CUDA</h3>
+            <ul>
+              <li><em>Kernels</em> são definidos por declaradores:
+                <pre><code data-trim class="c">
+__global__ kernel();
+__device__ subkernel();
+                </code></pre>
+              </li>
+              <li class="fragment">Parâmetros especiais especificam a quantidade de <em>threads</em>:
+                <pre><code data-trim class="c">
+int Blocos = 10;
+dim3 threadsPorBloco(100,1,1);
+kernel <<< Blocos, threadsPorBloco >>> ();
+                </code></pre>
+              </li>
+            </ul>
+          </div>
+          <aside class="notes">
+            <ul>
+              <li>Número de threads por bloco deve ser múltiplo do tamanho do Warp.</li>
+            </ul>
+          </aside>
+        </section>
+        <section>
+          <div style="background-image: url(img/tegra.jpg)" class="bg left small"></div>
+          <div class="slide right big">
+            <h3>CUDA <em>Threads</em></h3>
+            <ul>
+              <li>Organizadas em uma hierarquia de dois níveis de até 3 dimensões.</li>
+              <li class="fragment"><em>Grids</em> são um conjuntos de Blocos, Blocos são conjuntos de <em>threads</em>.</li>
+              <li class="fragment"><em>Threads</em> indexadas por variáveis locais pré-inicializadas.
+                <pre><code data-trim class="c">
+// Pos. global em X
+int x = blockIdx.x * blockDim.x + threadIdx.x;
+// Pos. global em Y
+int y = blockIdx.y * blockDim.y + threadIdx.y;
+// Pos. global em Z
+int z = blockIdx.z * blockDim.z + threadIdx.z;
+                </code></pre>
+              </li>
+            </ul>
+          </div>
+        </section>
+        <section>
+          <div class="slide fullimg" style="height: 80%;"><img src="img/gridOfThreads.png"></div>
+        </section>
+        <section>
+          <div style="background-image: url(img/gtx960.png)" class="bg left small"></div>
+          <div class="slide right big">
+            <h3>CUDA <em>Threads</em></h3>
+            <ul>
+              <li><em>Threads</em> de um bloco residem no <a href="#/10">SM</a> e compartilham seu recurso.</li>
+              <li class="fragment">Blocos são dimensionados de acordo com o <em>kernel</em> respeitando tamanho máximo.</li>
+              <li class="fragment"><em>Grids</em> são dimensionados de acordo com o problema.</li>
+              <li class="fragment">Índice global pode ser calculado por
+                <p class="center">$x + yD_x + zD_xD_y$</p>
+              </li>
+            </ul>
+          </div>
+        </section>
+        <section>
+          <div style="background-image: url(img/gf.jpg)" class="bg left small"></div>
+          <div class="slide right big">
+            <h3>Memória e Transferência de Dados</h3>
+            <ul>
+              <li>Necessário alocar memória no <em>device</em>.</li>
+              <li class="fragment">Necessário transferência de dados entre contextos.</li>
+              <li class="fragment">Transferências possuem alta latência.</li>
+              <li class="fragment">Transferir sequências contínuas de elementos.</li>
+            </ul>
+            <pre  class="fragment"><code data-trim class="c">
+// Aloca mem. no Device
+float *d_A;
+cudaMalloc(&d_A, sizeof(float)*N);
+// Copia dados para o Device
+cudaMemcpy(d_A, A, sizeof(float)*N,
+           cudaMemcpyHostToDevice);
+// Executa e aguarda o Kernel
+Kernel<<<10, 512>>>(d_A);
+cudaDeviceSynchronize();
+// Copia resultado para o Host
+cudaMemcpy(A, d_A, sizeof(float)*N,
+           cudaMemcpyDeviceToHost);
+            </code></pre>
+          </div>
+        </section>
+        <section>
+          <div style="background-image: url(img/tesla.jpeg)" class="bg left small"></div>
+          <div class="slide right big">
+            <h3>Memórias</h3>
+            <ul>
+              <li>Basicamente 3 tipos de memória.</li>
+              <li class="fragment">Armazenam 5 tipos de variáveis.</li>
+            </ul>
+            <table style="font-size: 70%;" class="fragment">
+              <tr>
+                <th>Declarador</th>
+                <th>Memória</th>
+                <th>Escopo</th>
+                <th>Duração</th>
+              </tr>
+              <tr>
+                <td>Variáveis Locais</td>
+                <td>Registradores</td>
+                <td>Thread</td>
+                <td>Kernel</td>
+              </tr>
+              <tr>
+                <td>Arrays Locais</td>
+                <td>Local</td>
+                <td>Thread</td>
+                <td>Kernel</td>
+              </tr>
+              <tr>
+                <td><code>__shared__</code></td>
+                <td>Compartilhada</td>
+                <td>Bloco</td>
+                <td>Kernel</td>
+              </tr>
+              <tr>
+                <td><code>__device__</code></td>
+                <td>Global</td>
+                <td>Grid</td>
+                <td>Aplicação</td>
+              </tr>
+              <tr>
+                <td><code>__constant__</code></td>
+                <td>Constante</td>
+                <td>Grid</td>
+                <td>Aplicação</td>
+              </tr>
+            </table>
+          </div>
+        </section>
+        <section>
+          <div class="slide fullimg"><img src="img/memory-spaces-on-cuda-device.png"></div>
+        </section>
+        <section>
+          <div style="background-image: url(img/gf.jpg)" class="bg left small"></div>
+          <div class="slide right big">
+            <h3>Memórias</h3>
+            <ul>
+              <li>Registradores: $65536 \times 32bits$ por bloco.</li>
+              <li class="fragment"><em>Register spilling:</em> excedente vai para memória local.</li>
+              <li class="fragment">Memória Compartilhada permite cooperação entre <em>threads</em> do bloco.</li>
+              <li class="fragment">Parâmetro de referência para dimensionar o bloco.</li>
+              <li class="fragment"><em>Warp</em> acessa em memória compartilhada em bancos.</li>
+            </ul>
+          </div>
+          <aside class="notes">
+            <ul>
+              <li>Num bloco de 512 threads pode-se utilizar no máximo 128x23bits de variáveis locais.</li>
+              <li>Não existe shared-memory spill. Kernel simplesmente não roda.</li>
+            </ul>
+          </aside>
+        </section>
+        <section>
+          <div style="background-image: url(img/sli.jpg)" class="bg left small"></div>
+          <div class="slide right big">
+            <h3>Memórias</h3>
+            <ul>
+              <li>Memória Global corresponde à DRAM.</li>
+              <li class="fragment">Ponte de comunicação entre <em>host</em> e <em>device</em>.</li>
+              <li class="fragment">Alta latência porém persiste durante toda a execução do programa.</li>
+              <li class="fragment">Também possui caches L1 e L2.</li>
+            </ul>
+          </div>
+          <aside class="notes">
+            <ul>
+              <il>L1 é localizado no SM e pode ser configurado para ter 64KB custando memória compartilhada.</il>
+            </ul>
+          </aside>
+        </section>
+        <section>
+          <div style="background-image: url(img/grid.jpg)" class="bg left small"></div>
+          <div class="slide right big">
+            <h3>Exemplo:</h3>
+            <p>Multiplicação Vetorial: $C = A \times B$</p>
+            <p>
+              \begin{align}
+              A &= [A_1, A_2, \cdots, A_n]\\
+              B &= [B_1, B_2, \cdots, B_n]\\
+              C &= [A_1 \cdot B_1, A_2 \cdot B_2, \cdots, A_n \cdot B_n]
+              \end{align}
+            </p>
+          </div>
+        </section>
+        <section>
+          <div class="slide">
+            <pre><code style="height: 100%;" data-trim class="c">
+#include < stdio.h >
+#include < cuda.h >
+#include < cuda_runtime.h >
+
+__global__ void VecMult(const int N, float* A, float* B, float* C) {
+  int i = blockDim.x * blockIdx.x + threadIdx.x;
+  if (i < N)
+  C[i] = A[i] * B[i];
+}
+            </code></pre>
+          </div>
+        </section>
+        <section>
+          <div class="slide">
+            <pre><code data-trim class="c">
+float* Mult(int N, float* A, float* B) {
+  size_t size = N * sizeof(float);
+  float* C = (float*)malloc(size);
+
+  float *d_A, *d_B, *d_C;
+  cudaMalloc(&d_A, size);
+  cudaMalloc(&d_B, size);
+  cudaMalloc(&d_C, size);
+
+  cudaMemcpy(d_A, A, size, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_B, B, size, cudaMemcpyHostToDevice);
+            </code></pre>
+          </section>
+          <section>
+            <div class="slide">
+              <pre><code data-trim class="c">
+int threadsPerBlock = 256;
+int blocksPerGrid = (N-1 + threadsPerBlock) / threadsPerBlock;
+VecAdd<<< blocksPerGrid, threadsPerBlock >>>(N, d_A, d_B, d_C);
+cudaDeviceSynchronize();
+
+cudaMemcpy(C, d_C, size, cudaMemcpyDeviceToHost);
+cudaFree(d_A); cudaFree(d_B); cudaFree(d_C);
+
+return C;
+}
+            </code></pre>
+          </div>
+        </section>
+        <section>
+          <div style="background-image: url(img/fluid1.jpg)" class="bg left small"></div>
+          <div class="slide right big">
+            <h3>FEM</h3>
+            <ul>
+              <li>Método variacional para solucionar problemas de valor de contorno.
+                <p style="font-size: 70%;">
+                \begin{align}
+                  -\nabla^2 V &= f(x,y) &\text{em } \Omega\\
+                  V &= V_0 &\text{em } \partial \Omega
+                \end{align}
+              </p>
+              </li>
+              <li class="fragment">
+                Utiliza a fomulação variacional.
+                <p style="font-size: 70%;">
+                \begin{equation}
+              		\label{eq:variacional}
+              		\int_\Omega (\nabla^2 V) u d \Omega = \int_\Omega f u d \Omega \qquad \forall u \in H
+              	\end{equation}
+              </p>
+              </li>
+              <li class="fragment" style="font-size: 70%;">
+                \begin{equation}
+              		\label{eq:fraca}
+              		\int_{\partial \Omega} (u \nabla V) d{\partial \Omega} - \int_\Omega \nabla V \nabla u d \Omega = \int_\Omega f u d \Omega
+              	\end{equation}
+              </li>
+              <li class="fragment" style="font-size: 70%;">
+                \begin{equation}
+              		- \int_\Omega \nabla V \nabla u d \Omega = \int_\Omega f u d \Omega
+              	\end{equation}
+              </li>
+
+            </ul>
+          </div>
+          <aside class="notes">
+            <ul>
+              <li>Problema pode não admitir soluções devido à descontinuidades ou irregularidades na solução ou no termo fonte da equação.</li>
+              <li>O princípio básico da obtenção da forma variacional do sistema consiste em multiplicar a equação por uma função teste "u".</li>
+              <li>V pertence classe de funções admissíveis para o problema.</li>
+              <li>H denota o espaço de funções teste para o problema.</li>
+              <li>"u" é nula no contorno.</li>
+            </ul>
+          </aside>
+        </section>
+        <section>
+          <div style="background-image: url(img/mesh.jpg)" class="bg left small"></div>
+          <div class="slide right big">
+            <h3>FEM</h3>
+            <ul>
+              <li>Domínio é discretizado em uma coleção de sub-domínios que são integrados separadamente.</li>
+              <li class="fragment">Funções de base são definidas para cada Grau de Liberdade.</li>
+              <li class="fragment" style="font-size: 70%;">
+                \begin{align*}
+              		N_e^i &= 1 & \quad \text{sobre o i-ésimo grau de liberdade}\\
+              		N_e^j &= 0 & \quad \forall j \neq i
+              	\end{align*}
+              </li>
+              <li class="fragment" >
+                Para $m$ Graus de Liberdade:
+                <p style="font-size: 70%;">
+                \begin{equation}
+                  \sum^m_{i=1} \int_{\Omega_e} \nabla N_i \nabla N_j d \Omega_e V_i
+                    = - \int_{\Omega_e} N_j f_e d \Omega_e \quad \forall N_j \in H
+                \end{equation}
+                </p>
+              </li>
+              <li class="fragment">
+                Elementos são condensadas em um sistema linear.
+              </li>
+            </ul>
+          </div>
+        </section>
+        <section>
+          <div style="background-image: url(img/nscheme.jpg)" class="bg left small"></div>
+          <div class="slide right big">
+            <h3>N-Scheme</h3>
+            <ul>
+              <li>Trabalha com incógnitas nodais em células.</li>
+              <li class="fragment">Equivalente ao método iterativo de Gauss-Seidel.</li>
+              <li class="fragment">Processo de integração e solução conjunta.</li>
+              <li class="fragment">Necessita armazenar somente informações de nós, elementos e o vetor de potênciais.</li>
+              <li class="fragment">
+                <ol>
+                  <li>Para cada nó incógnita:</li>
+                  <ol  style="font-size: 80%;">
+                    <li>Calcula-se a contribuição de cada elemento.</li>
+                    <li>Estima-se o potencial do nó.</li>
+                  </ol>
+                  <li>Atualiza o vetor de potenciais e repete até convergir.</li>
+                </ol>
+              </li>
+            </ul>
+          </div>
+        </section>
+        <section>
+          <div class="slide left big">
+            <img src="img/nscheme.png">
+          </div>
+          <div class="slide right small" style="font-size: 60%;">
+            <p>
+              Exemplo $x_6^a$ na sequência [2, 3, 6]:
+            \begin{equation}
+            	\begin{bmatrix}
+            		a_{1,1} & a_{1,2} & a_{1,3}\\
+            		a_{2,1} & a_{2,2} & a_{2,3}\\
+            		a_{3,1} & a_{3,2} & a_{3,3}
+            	\end{bmatrix}
+            	\begin{bmatrix}
+            		x_2\\
+            		x_3\\
+            		x_6
+            	\end{bmatrix}
+            	=
+            	\begin{bmatrix}
+            		b_2\\
+            		b_3\\
+            		b_6
+            	\end{bmatrix}
+            \end{equation}
+            </p>
+            <p>
+            \begin{align}
+            	a_{1,1} x_2 = b_2 - a_{1,2} x_3 - a_{1,3} x_6 \\
+            	a_{2,2} x_3 = b_3 - a_{2,1} x_2 - a_{2,3} x_6 \\
+            	a_{3,3} x_6 = b_6 - a_{3,1} x_2 - a_{3,2} x_3
+            \end{align}
+            </p>
+            <p>
+              De maneira genérica:
+              \begin{align}
+              	right\_sum_n =& \sum_{e}^{cell} b_n - a_{n,j}^e x_j - a_{n,l}^e x_l \\
+              	diag\_sum_n =& \sum_{e}^{cell} a_{n,n}^e \\
+                x_n =& {right\_sum_n \over diag\_sum_n}
+              \end{align}
+            </p>
+          </div>
+        </section>
+        <section>
+          <div style="background-image: url(img/nscheme.jpg)" class="bg left small"></div>
+          <div class="slide right big">
+            <h3>N-Scheme</h3>
+            <ul>
+              <li>
+                Convergência pode ser acelerada utilizando sobre-relaxamento (SOR):
+                <p style="font-size: 70%;">
+                \begin{equation}
+                  x_n^k = x_n + R*(x_n - x_n^{k-1}) \quad R \in ]0,1]
+                \end{equation}
+                </p>
+              </li>
+              <li class="fragment">Necessita criar relação $Nó \to Elemento$.</li>
+              <li class="fragment">Custo computacional.</li>
+              <li class="fragment">Células podem ser calculadas paralelamente.</li>
+            </ul>
+          </div>
+        </section>
+        <section>
+          <div class="slide">
+            <pre><code data-trim class="c">x[]  = 0
+x[] += contorno
+i  = 0
+enquanto não convergir
+    para cada nó incógnita
+        diag_sum  = 0
+        right_sum = 0
+        para cada elemento do nó
+            // n = índice local de nó
+            integra(elemento)
+            diag_sum  += a[n,n]
+            right_sum += b[n] - a[n,j]x[j] - a[n,l]x[l]
+        x[n] = right_sum/diag_sum
+    i += 1
+    avalia convergencia</code></pre>
+        </div>
+      </section>
+        <section>
+          <div style="background-image: url(img/nscheme.jpg)" class="bg left small"></div>
+          <div class="slide right big">
+            <h3>N-Scheme Paralelo</h3>
+            <ul>
+              <li>Condição de corrida impossibilita implementação de Gauss-Seidel.
+                <p style="font-size: 70%;">
+                \begin{equation}
+              		\label{eq:gaussseidel}
+              		x_i^{k+1} = {1 \over a_{ii}} \left[ b_i - \sum_{j=1}^{i-1} a_{ij} x_j^{k+1} - \sum_{j=i+1}^{n} a_{ij} x_j^k \right], \quad i= 1,2,\dots,n
+              	\end{equation}
+                </p>
+              </li>
+              <li class="fragment"><em>Coloring:</em>
+                <ol style="font-size: 80%;">
+                  <li>Agrupar equações que não compartilham uma mesma incógnita.</li>
+                  <li>Processar cores sequencialmente.</li>
+                </ol>
+              </li>
+            </ul>
+          </div>
+        </section>
+        <section>
+          <div class="slide fullimg"><img src="img/coloring_proc.png"></div>
+        </section>
+        <section>
+          <div class="slide fullimg"><img src="img/group_proc.png"></div>
+        </section>
+        <section>
+          <div class="slide">
+            <pre><code data-trim class="c">para cada grupo  // Sequencial
+    // Copia grupo de elementos e nós para GPU
+    // Sincroniza
+    para todos os elementos do grupo:  // Kernel de Integração
+        integra(elemento)
+    // Sincroniza
+    para cada cor do grupo  // Sequencial
+        para todos os nós da cor  // Kernel do Nó
+            diag_sum  = 0
+            right_sum = 0
+            para cada elemento do nó
+                // n = índice local de nó
+                diag_sum  += a[n,n]
+                right_sum += b[n] - a[n,j]x[j] - a[n,l]x[l]
+            x[n] = right_sum/diag_sum = R * (right_sum/diag_sum - x[n])  // SOR</code></pre>
+        </div>
+      </section>
+      <section>
+        <div style="background-image: url(img/nscheme.png)" class="bg left small"></div>
+        <div class="slide right big">
+          <h3>N-Scheme-CG</h3>
+          <ul>
+            <li>Método iterativo que converge através da redução da função erro do sistema.</li>
+            <li class="fragment">Convergência quadrática.</li>
+            <li class="fragment">Dado o vetor teste $\overline{x}$ calcula-se o residual $r$:
+              <p style="font-size: 100%;">
+                \begin{align}
+              		r &= b - A \overline{x} \\
+              		r &= right\_sum - diag\_sum \cdot \overline{x} \\
+              	\end{align}
+              </p>
+            </li>
+            <li class="fragment">Opera por elemento e não por nó incógnita.</li>
+          </ul>
+        </div>
+      </section>
+      <section>
+        <div style="background-image: url(img/nscheme.jpg)" class="bg left small"></div>
+        <div class="slide right big">
+          <h3>N-Scheme-CG</h3>
+          <ul>
+            <p style="font-size: 70%;">
+              \begin{align}
+            		p_0 = r_0 &= b - A \overline{x_0} \\
+            	\end{align}
+              Itera até convergir:
+              \begin{align}
+            		u_k &= A r_k \\
+            		\alpha_k &= {p^t_k r_k \over p^t_k u_k} \\
+            		x_{k+1} &= x_k + \alpha_k r_k \\
+            		r_{k+1} &= r_k - \alpha_k u_k \\
+                \beta_k &= - {r^t_{k+1} u_k \over p^t_k u_k} \\
+                p_{k+1} &= r_k + \beta_k p_k \\
+            	\end{align}
+            </p>
+          </ul>
+        </div>
+      </section>
+      <!-- NSCHEME CG PARALELO! -->
+      <section>
+        <div style="background-image: url(img/msh.png)" class="bg left small"></div>
+        <div class="slide right big">
+          <h3>Caso Teste</h3>
+          <ul>
+            <li>Equação de Poisson em meio hmogêneo sem cargas: $$\nabla^2 V = 0$$</li>
+            <li class="fragment">Diferentes malhas geradas utilizando o GMSH.</li>
+            <li class="fragment">Pré-processamento em Python.</li>
+            <li class="fragment">Métrica utilizada: $$speedup = { T_s \over T_p }$$</li>
+            <li class="fragment">Configuração de Hardware:
+              <ul style="font-size: 80%;">
+                <li>Intel G2130 3.2GHz com 2 núcleos e 3MB cache.</li>
+                <li>4GB DDR3 1333MHz</li>
+                <li>PNY NVIDIA GeForce GTX960 2GB, 1024 Núcleos</li>
+              </ul>
+          </ul>
+        </div>
+      </section>
+      <section>
+        <div class="slide fullimg" style="height: 90%;"><img src="img/casoteste.png"></div>
+      </section>
+      <section>
+        <div class="slide">
+          <h3>Resultados Nscheme-SOR</h3>
+          <img src="img/sorcputime.png">
+        </div>
+      </section>
+      <section>
+        <div class="slide">
+          <h3>Resultados Nscheme-SOR</h3>
+          <img src="img/sorspeedup.png">
+        </div>
+      </section>
+      <section>
+        <div class="slide">
+          <h3>Resultados Nscheme-CG</h3>
+          <img src="img/cgtime.png">
+        </div>
+      </section>
+      <section>
+        <div class="slide">
+          <h3>Resultados Nscheme-CG</h3>
+          <img src="img/cgspeedup.png">
+        </div>
+      </section>
+      <section>
+        <div style="background-image: url(img/l2.png)" class="bg left small"></div>
+        <div class="slide right big">
+          <h3>Considerações Finais</h3>
+          <ul>
+            <li>GPUs atuais podem ser utilizadas como um processador massivamente paralelo.</li>
+            <li>Técnicas numéricas como o FEM podem explorar essas arquiteturas.</li>
+            <li>N-Scheme troca necessidade de memória por mais processamento.</li>
+            <li>Aplicações devem levar em consideração particularidades da arquitetura utilizada e problema proposto.</li>
+        </div>
+      </section>
+      <section>
+        <div style="background-image: url(img/gf.jpg)" class="bg left small"></div>
+        <div class="slide right big">
+          <h3>Extensões</h3>
+          <ul>
+            <li>Paralelização em GPU da técnica N-Scheme para modelos tridimensionais.</li>
+            <li>Paralelização em GPU da técnica N-Scheme para simulação de problemas dinâmicos.</li>
+            <li>Paralelização da técnica N-Scheme utilizando clusters de GPUs.</li>
+            <li>Paralelização da técnica N-Scheme em APUs AMD de arquitetura heterogênea.</li>
+        </div>
+      </section>
+      </div>
+    </div>
+    <script src="lib/js/head.min.js"></script>
+    <script src="js/reveal.js"></script>
+    <script>
+    // Full list of configuration options available at:
+    // https://github.com/hakimel/reveal.js#configuration
+    Reveal.initialize({
+      controls: false,
+      progress: true,
+      slideNumber: true,
+      history: true,
+      center: true,
+      width: "100%",
+      height: "100%",
+      margin: 0,
+      math: {
+        mathjax: 'bower_components/MathJax/MathJax.js'
+      },
+      transition: 'fade', // none/fade/slide/convex/concave/zoom
+      // Optional reveal.js plugins
+      dependencies: [
+        { src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+        { src: 'plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+        { src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+        { src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+        { src: 'plugin/zoom-js/zoom.js', async: true },
+        { src: 'plugin/notes/notes.js', async: true },
+        { src: 'plugin/math/math.js', async: true }
+      ]
+    });
+    </script>
+  </body>
+</html>
