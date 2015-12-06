@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
     <link rel="stylesheet" href="css/reveal.css">
-    <link rel="stylesheet" href="css/theme/leo.css" id="theme">
+    <link rel="stylesheet" href="css/theme/leo_low.css" id="theme">
     <link rel="stylesheet" href="lib/css/github.css">
     <script>
       var link = document.createElement( 'link' );
@@ -20,7 +20,7 @@
   </head>
   <body>
     <div class="reveal">
-      <div class="slides">
+      <div class="slides" style="font-size: 90%;">
         <section>
           <div class="slide cover">
             <h4>Programação Paralela em GPU aplicada à técnica <em>N-Scheme</em> para solução de problemas Eletrostáticos utilizando o Método dos Elementos Finitos</h4>
@@ -166,9 +166,7 @@
           <div class="slide fullimg"><img src="img/sm_scalability.png"></div>
         </section>
         <section>
-          <div class="slide fullimg" id="sm" style="height: 90%;">
-            <!-- <img src="img/smx.png"> -->
-            <img src="img/smm.png"></div>
+          <div class="slide fullimg" id="sm" style="height: 90%;"><img src="img/smm.png"></div>
         </section>
         <section>
           <div style="background-image: url(img/tegra.jpg)" class="bg left small"></div>
@@ -266,7 +264,7 @@ int z = blockIdx.z * blockDim.z + threadIdx.z;
         <section>
           <div style="background-image: url(img/gf.jpg)" class="bg left small"></div>
           <div class="slide right big">
-            <h3>Memória e Transferência de Dados</h3>
+            <h3>Memória</h3>
             <ul>
               <li>Necessário alocar memória no <em>device</em>.</li>
               <li class="fragment">Necessário transferência de dados entre contextos.</li>
